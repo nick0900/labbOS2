@@ -2,7 +2,6 @@
 #include <stdlib.h>
 #include <fcntl.h>
 #include <math.h>
-#include <unistd.h>
 
 typedef struct Page 
     {
@@ -23,8 +22,8 @@ int main(int argc, char **argv)
     Page *out = NULL;
     long noPages;
     long pageSize;
-    FILE *f1;
-    FILE *f2;
+    FILE *f;
+    FILE *fHelp;
     int traceCount = 0;
     int pagefaults = 0;
     char line[32];
@@ -41,10 +40,10 @@ int main(int argc, char **argv)
 
     printf("No physical pages = %ld, page size = %ld\n", noPages, pageSize);
 
-    f1 = fopen(argv[3], "r");
-    f2 = fopen(argv[3], "r");
+    f = fopen(argv[3], "r");
+    fHelp = fopen(argv[3], "r");
 
-    if (f1 == NULL)
+    if (f == NULL)
     {
         printf("failed to open %s\n", argv[3]);
         return 0;
@@ -52,7 +51,7 @@ int main(int argc, char **argv)
 
     printf("Reading memory trace from %s\n", argv[3]);
 
-    while (fgets(line, sizeof(line), f1))
+    while (fgets(line, sizeof(line), f))
     {
         trace = (unsigned int) strtol(line, NULL, 10);
 
@@ -60,7 +59,7 @@ int main(int argc, char **argv)
 
         int pageMatch = 0;
 
-        fseek(f2, fseek(f1, 1, SEEK_CUR), SEEK_SET);
+        fseek(fHelp, ftell(f), SEEK_SET);
 
         Page *next = in;
         while (next != NULL)
@@ -68,7 +67,7 @@ int main(int argc, char **argv)
             if ((trace >= next->lower) && (trace < next->upper))
             {
                 pageMatch = 1;
-                next->lable = getNextAcc(f2, next, ticker);
+                next->lable = getNextAcc(fHelp, next, ticker);
                 break;
             }
             next = next->next;
@@ -88,7 +87,7 @@ int main(int argc, char **argv)
                     in->next = NULL;
                     in->lower = floor(trace / pageSize) * pageSize;
                     in->upper = in->lower + pageSize;
-                    in->lable = getNextAcc(f2, in, ticker);
+                    in->lable = getNextAcc(fHelp, in, ticker);
                 }
                 else
                 {
@@ -97,7 +96,7 @@ int main(int argc, char **argv)
                     temp->next = in;
                     temp->lower = floor(trace / pageSize) * pageSize;
                     temp->upper = temp->lower + pageSize;
-                    temp->lable = getNextAcc(f2, in, ticker);
+                    temp->lable = getNextAcc(fHelp, temp, ticker);
 
                     in = temp;
                 }
@@ -117,11 +116,10 @@ int main(int argc, char **argv)
 
                 leastUsed->lower = floor(trace / pageSize) * pageSize;
                 leastUsed->upper = leastUsed->lower + pageSize;
-                leastUsed->lable = getNextAcc(f2, leastUsed, ticker);
+                leastUsed->lable = getNextAcc(fHelp, leastUsed, ticker);
             }
         }
         ticker++;
-        printf("%ld\n", ticker);
     }
 
     printf("Read %d memory references => %d pagefaults\n", traceCount, pagefaults);
@@ -135,7 +133,8 @@ int main(int argc, char **argv)
     } 
     
 
-    fclose(f1);
+    fclose(f);
+    fclose(fHelp);
 
     return 1;
 }
@@ -144,6 +143,7 @@ unsigned long getNextAcc(FILE *f, Page *ref, unsigned long tick)
 {
     char line[32];
     unsigned int trace;
+
     while (fgets(line, sizeof(line), f))
     {
         trace = (unsigned int) strtol(line, NULL, 10);
