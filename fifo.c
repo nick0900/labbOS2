@@ -13,8 +13,8 @@ int main(int argc, char **argv)
     }Page;
 
     unsigned int qSize = 0;
-    Page *in;
-    Page *out;
+    Page *in = NULL;
+    Page *out = NULL;
     long noPages;
     long pageSize;
     FILE *f;
@@ -53,16 +53,19 @@ int main(int argc, char **argv)
         int pageMatch = 0;
         
         Page *next = in;
-        for (int i = 0; i < qSize; i++)
+        while (next != NULL)
         {
-            if (next->lower <= trace && next->upper > trace)
+            if ((trace >= next->lower) && (trace < next->upper))
             {
                 pageMatch = 1;
+                break;
             }
+            next = next->next;
         }
 
         if (pageMatch == 0)
         {
+            pagefaults++;
             if (qSize < noPages)
             {
                 qSize++;
@@ -88,8 +91,6 @@ int main(int argc, char **argv)
             }
             else
             {
-                pagefaults++;
-
                 out->lower = floor(trace / pageSize) * pageSize;
                 out->upper = out->lower + pageSize;
                 out->next = in;
